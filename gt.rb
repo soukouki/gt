@@ -32,16 +32,20 @@ end
 def checkout input, terget, should_see_diff_commit
 	if input[0]=="c"
 		input.shift
-		start_branch = `git rev-parse --abbrev-ref HEAD` if should_see_diff_commit
+		start_branch = current_branch if should_see_diff_commit
 		command "checkout", [terget]
-		`git l1 #{start_branch}..#{`git rev-parse --abbrev-ref HEAD`}` if should_see_diff_commit
+		puts `git l1 #{start_branch}..#{current_branch}` if should_see_diff_commit
 	end
+end
+
+def current_branch
+	`git rev-parse --abbrev-ref HEAD`
 end
 
 input = ARGV.shift.split("")
 
 if input[0]=="c"
-	start_branch = `git rev-parse --abbrev-ref HEAD`
+	start_branch = current_branch
 	checkout(input, ARGV.shift, true)
 
 	merge(input, start_branch)
