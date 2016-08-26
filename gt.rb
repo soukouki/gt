@@ -29,12 +29,10 @@ def merge input, target
 	end
 end
 
-def checkout input, terget, should_see_diff_commit
+def checkout input, terget
 	if input[0]=="c"
 		input.shift
-		start_branch = current_branch if should_see_diff_commit
 		command "checkout", [terget]
-		puts `git l1 #{start_branch}..#{current_branch}` if should_see_diff_commit
 	end
 end
 
@@ -46,7 +44,7 @@ input = ARGV.shift.split("")
 
 if input[0]=="c"
 	start_branch = current_branch
-	checkout(input, ARGV.shift, true)
+	checkout(input, ARGV.shift)
 
 	merge(input, start_branch)
 
@@ -54,7 +52,7 @@ if input[0]=="c"
 
 	sync input
 
-	checkout(input, start_branch, false)
+	checkout(input, start_branch)
 elsif input[0]=="m"
 	merge_target = ARGV.shift
 	merge(input, merge_target)
