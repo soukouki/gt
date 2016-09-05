@@ -3,7 +3,7 @@
 def command command_name, argument
 	abort "#{command_name}の引数がありません。" if argument.include?(nil)
 	# Array#shiftなどは、要素が無いときはnilを返すのでそれを見つける
-	puts `git #{command_name} #{argument.join(" ")}`
+	puts `git #{command_name} #{argument.map{|a| %!"#{a}"! }.join(" ")}`
 	return_num = $?.to_i
 	abort "#{command_name}に失敗しました。" unless return_num==0
 end
@@ -37,7 +37,7 @@ def checkout input, terget
 end
 
 def current_branch
-	`git rev-parse --abbrev-ref HEAD`
+	`git rev-parse --abbrev-ref HEAD`.chomp
 end
 
 input = ARGV.shift.split("")
