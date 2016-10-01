@@ -25,7 +25,7 @@ end
 def merge input, target
 	if input[0]=="m"
 		input.shift
-		command "merge", [target]
+		command "merge -s resolve", [target]
 	end
 end
 
@@ -40,7 +40,11 @@ def current_branch
 	`git rev-parse --abbrev-ref HEAD`.chomp
 end
 
+# ここからメイン処理
+
 input = ARGV.shift.split("")
+
+sync input
 
 if input[0]=="c"
 	start_branch = current_branch
