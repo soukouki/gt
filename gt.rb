@@ -1,47 +1,40 @@
 # encoding: UTF-8
 
-def command command_name, argument
-	abort "#{command_name}の引数がありません。" if argument.include?(nil)
-	# Array#shiftなどは、要素が無いときはnilを返すのでそれを見つける
-	command = "git #{command_name} #{argument.map{|a| %!"#{a}"! }.join(" ")}"
-	puts command
-	puts `#{command}`
-	return_num = $?.to_i
-	abort "#{command_name}に失敗しました。" unless return_num==0
-end
-
-def sync input
-	if input[0]=="s"
-		input.shift
-		command "sync", []
-	end
-end
-
-def delete_branch input, target
-	if input[0]=="d"
-		input.shift
-		command "branch -D", [target]
-	end
-end
-
-def merge input, target
-	if input[0]=="m"
-		input.shift
-		command "merge -s resolve", [target]
-	end
-end
-
-def merge_ff input, target
-	if input.take(2)==["m", "f"]
-		input.shift(2)
-		command "merge --ff", [target]
-	end
-end
-
-def checkout input, terget
-	if input[0]=="c"
-		input.shift
-		command "checkout", [terget]
+class Cmd
+	class << self
+		def sync input
+			commands_base("sync", "s", input, [])
+		end
+		def delete_branch input, target
+			commands_base("branch -D", "d", input, [target])
+		end
+		def merge input, target
+			commands_base("merge", "m", input, [target])
+		end
+		def merge_ff input, target
+			commands_base("merge --ff", "mf", input, [target])
+		end
+		def checkout input, target
+			commands_base("checkout", "c", input, [target])
+		end
+		
+		private
+		def commands_base name, abbreviation_command, input, target
+			abbcommand_length = abbreviation_command.length
+			if input.take(abbcommand_length).join("")==abbreviation_command
+				input.shift(abbcommand_length)
+				exec_command(name, target)
+			end
+		end
+		def exec_command name, argument
+			abort "#{name}の引数がありません。" if argument.include?(nil)
+			# Array#shiftなどは、要素が無いときはnilを返すのでそれを見つける
+			exe_shell = "git #{name} #{argument.map{|a| %!"#{a}"! }.join(" ")}"
+			puts exe_shell
+			puts `#{exe_shell}`
+			return_num = $?.to_i
+			abort "#{name}に失敗しました。" unless return_num==0
+		end
 	end
 end
 
@@ -53,29 +46,25 @@ end
 
 input = ARGV.shift.split("")
 
-sync input
+Cmd.sync(input)
 
 if input[0]=="c"
 	start_branch = current_branch
-	checkout(input, ARGV.shift)
 	
-	merge_ff(input, start_branch)
-	merge(input, start_branch)
-	
-	delete_branch(input, start_branch)
-	
-	sync input
-	
-	checkout(input, start_branch)
+	Cmd.checkout(input, ARGV.shift)
+	Cmd.merge_ff(input, start_branch)
+	Cmd.merge(input, start_branch)
+	Cmd.delete_branch(input, start_branch)
+	Cmd.sync input
+	Cmd.checkout(input, start_branch)
 elsif input[0]=="m"
 	merge_target = ARGV.shift
 	
-	merge_ff(input, merge_target)
-	merge(input, merge_target)
-	
-	delete_branch(input, merge_target)
+	Cmd.merge_ff(input, merge_target)
+	Cmd.merge(input, merge_target)
+	Cmd.delete_branch(input, merge_target)
 elsif input[0]=="d"
-	delete_branch(input, ARGV.shift)
+	Cmd.delete_branch(input, ARGV.shift)
 end
 
-sync input
+Cmd.sync input
