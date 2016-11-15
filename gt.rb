@@ -1,6 +1,7 @@
 # encoding: UTF-8
 
-class Cmd
+# コマンド群
+module Cmd
 	class << self
 		def sync input
 			commands_base("sync", "s", input, [])
@@ -24,7 +25,9 @@ class Cmd
 			if input.take(abbcommand_length).join("")==abbreviation_command
 				input.shift(abbcommand_length)
 				exec_command(name, target)
+				return true
 			end
+			return false
 		end
 		def exec_command name, argument
 			abort "#{name}の引数がありません。" if argument.include?(nil)
@@ -42,29 +45,42 @@ def current_branch
 	`git rev-parse --abbrev-ref HEAD`.chomp
 end
 
-# ここからメイン処理
-
-input = ARGV.shift.split("")
-
-Cmd.sync(input)
-
-if input[0]=="c"
+# この関数群を動き回って処理していく
+def start input, target
+	case input[0]
+	when "c"
+		checkouts(input, target)
+	when "m"
+		merges(input, target)
+	when "s"
+		Cmd.sync(input)
+	when "d"
+		Cmd.delete_branch(input, target.shift)
+	else
+		abort "コマンドが不明です'#{input.join}'"
+	end
+	if input.length>0
+		start(input, target)
+	end
+end
+def checkouts input, target
 	start_branch = current_branch
 	
-	Cmd.checkout(input, ARGV.shift)
+	Cmd.checkout(input, target.shift)
 	Cmd.merge_ff(input, start_branch)
 	Cmd.merge(input, start_branch)
-	Cmd.delete_branch(input, start_branch)
+	is_deleted = Cmd.delete_branch(input, start_branch)
 	Cmd.sync input
-	Cmd.checkout(input, start_branch)
-elsif input[0]=="m"
-	merge_target = ARGV.shift
+	Cmd.checkout(input, start_branch) unless is_deleted
+end
+def merges input, target
+	merge_target = target.shift
 	
 	Cmd.merge_ff(input, merge_target)
 	Cmd.merge(input, merge_target)
 	Cmd.delete_branch(input, merge_target)
-elsif input[0]=="d"
-	Cmd.delete_branch(input, ARGV.shift)
 end
 
-Cmd.sync input
+# 起動用
+input = ARGV.shift.split("")
+start(input, ARGV)
