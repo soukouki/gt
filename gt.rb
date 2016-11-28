@@ -34,7 +34,7 @@ module Cmd
 			# Array#shiftなどは、要素が無いときはnilを返すのでそれを見つける
 			exe_shell = "git #{name} #{argument.map{|a| %!"#{a}"! }.join(" ")}"
 			puts exe_shell
-			puts `#{exe_shell}`
+			puts `#{exe_shell}\n`
 			return_num = $?.to_i
 			abort "#{name}に失敗しました。" unless return_num==0
 		end
@@ -84,3 +84,4 @@ end
 # 起動用
 input = ARGV.shift.split("")
 start(input, ARGV)
+puts("処理が終了した際に引数が残っています'#{ARGV}'") unless ARGV.empty?
