@@ -15,6 +15,9 @@ module Cmd
 		def merge_ff input, target
 			commands_base("merge --ff", "mf", input, [target])
 		end
+		def merge_squash input, target
+			commands_base("merge --squash", "ms", input, [target])
+		end
 		def checkout input, target
 			commands_base("checkout", "c", input, [target])
 		end
@@ -68,6 +71,7 @@ def checkouts input, target
 	
 	Cmd.checkout(input, target.shift)
 	Cmd.merge_ff(input, start_branch)
+	Cmd.merge_squash(input, start_branch)
 	Cmd.merge(input, start_branch)
 	is_deleted = Cmd.delete_branch(input, start_branch)
 	Cmd.sync input
@@ -77,6 +81,7 @@ def merges input, target
 	merge_target = target.shift
 	
 	Cmd.merge_ff(input, merge_target)
+	Cmd.merge_squash(input, merge_target)
 	Cmd.merge(input, merge_target)
 	Cmd.delete_branch(input, merge_target)
 end
