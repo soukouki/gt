@@ -1,5 +1,11 @@
 # encoding: UTF-8
 
+# これつけないと動かないけど、出来るだけメイン部分とは離したい
+# それぞれの環境に適当に合わせてください
+def command cmd
+	`powershell #{cmd}`
+end
+
 # コマンド群
 module Cmd
 	class << self
@@ -37,7 +43,7 @@ module Cmd
 			# Array#shiftなどは、要素が無いときはnilを返すのでそれを見つける
 			exe_shell = "git #{name} #{argument.map{|a| %!"#{a}"! }.join(" ")}"
 			puts exe_shell
-			puts `#{exe_shell}\n`
+			puts command(exe_shell)
 			return_num = $?.to_i
 			abort "#{name}に失敗しました。" unless return_num==0
 		end
@@ -45,7 +51,7 @@ module Cmd
 end
 
 def current_branch
-	`git rev-parse --abbrev-ref HEAD`.chomp
+	command("git rev-parse --abbrev-ref HEAD").chomp
 end
 
 # この関数群を動き回って処理していく
@@ -59,6 +65,8 @@ def start input, target
 		Cmd.sync(input)
 	when "d"
 		Cmd.delete_branch(input, target.shift)
+	when "-"
+		input.shift
 	else
 		abort "コマンドが不明です'#{input.join}'"
 	end
