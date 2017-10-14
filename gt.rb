@@ -32,11 +32,13 @@ module Cmd extend self
 	end
 	
 	private
-	# ちょっとよくわかんない
+	# コマンドがあっていた場合、その分を削り、コマンドを実行する
 	def commands_base name, abbreviation_command, commands, target
-		abbcommand_length = abbreviation_command.length
-		if commands.take(abbcommand_length).join("")==abbreviation_command
-			commands.shift(abbcommand_length)
+		# nilはshiftでの要素が足りないときの戻り値
+		abort "ターゲットが足りません。コマンド:'#{name}' 省略コマンド:'#{abbreviation_command}' ターゲット:'#{target}'" if target.include?(nil)
+		abbcom_len = abbreviation_command.length
+		if commands.take(abbcom_len).join("")==abbreviation_command
+			commands.shift(abbcom_len)
 			exec_command(name, target)
 			return true
 		end
@@ -44,9 +46,7 @@ module Cmd extend self
 	end
 	#
 	def exec_command name, argument
-		abort "#{name}の引数がありません。" if argument.include?(nil)
-		# Array#shiftなどは、要素が無いときはnilを返すのでそれを見つける
-		exe_shell = "git #{name} #{argument.map{|a| %!"#{a}"! }.join(" ")}"
+		exe_shell = "git #{name} #{argument.join(" ")}"
 		puts "\n"+exe_shell
 		puts "\t"+command(exe_shell)
 		return_num = $?.to_i
