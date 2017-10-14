@@ -9,34 +9,34 @@ end
 # コマンド群
 module Cmd extend self
 	# 処理の流れにコマンドと省略コマンドを入れる
-	def sync input
-		commands_base("sync", "s", input, [])
+	def sync commands
+		commands_base("sync", "s", commands, [])
 	end
-	def delete_branch input, target
-		commands_base("branch -D", "d", input, [target])
+	def delete_branch commands, target
+		commands_base("branch -D", "d", commands, [target])
 	end
-	def merge input, target
-		commands_base("merge --no-ff", "m", input, [target])
+	def merge commands, target
+		commands_base("merge --no-ff", "m", commands, [target])
 	end
-	def merge_ff input, target
-		commands_base("merge --ff", "mf", input, [target])
+	def merge_ff commands, target
+		commands_base("merge --ff", "mf", commands, [target])
 	end
-	def merge_squash input, target
-		commands_base("merge --squash", "ms", input, [target])
+	def merge_squash commands, target
+		commands_base("merge --squash", "ms", commands, [target])
 	end
-	def checkout input, target
-		commands_base("checkout", "c", input, [target])
+	def checkout commands, target
+		commands_base("checkout", "c", commands, [target])
 	end
-	def new_branch input, target
-		commands_base("checkout -b", input, [])
+	def new_branch commands, target
+		commands_base("checkout -b", commands, [])
 	end
 	
 	private
 	# ちょっとよくわかんない
-	def commands_base name, abbreviation_command, input, target
+	def commands_base name, abbreviation_command, commands, target
 		abbcommand_length = abbreviation_command.length
-		if input.take(abbcommand_length).join("")==abbreviation_command
-			input.shift(abbcommand_length)
+		if commands.take(abbcommand_length).join("")==abbreviation_command
+			commands.shift(abbcommand_length)
 			exec_command(name, target)
 			return true
 		end
@@ -82,27 +82,27 @@ def start commands, target
 	"処理が終了した際にターゲットが残っています。'#{target}'" if target.length > 0
 end
 # チェックアウトの後にいろいろする場合
-def checkouts input, target
+def checkouts commands, target
 	start_branch = current_branch
 	
-	Cmd.checkout(input, target.shift)
-	Cmd.merge_ff(input, start_branch)
-	Cmd.merge_squash(input, start_branch)
-	Cmd.merge(input, start_branch)
-	is_deleted = Cmd.delete_branch(input, start_branch)
-	Cmd.sync input
-	Cmd.checkout(input, start_branch) unless is_deleted
+	Cmd.checkout(commands, target.shift)
+	Cmd.merge_ff(commands, start_branch)
+	Cmd.merge_squash(commands, start_branch)
+	Cmd.merge(commands, start_branch)
+	is_deleted = Cmd.delete_branch(commands, start_branch)
+	Cmd.sync commands
+	Cmd.checkout(commands, start_branch) unless is_deleted
 end
 # マージの後にいろいろする場合
-def merges input, target
+def merges commands, target
 	merge_target = target.shift
 	
-	Cmd.merge_ff(input, merge_target)
-	Cmd.merge_squash(input, merge_target)
-	Cmd.merge(input, merge_target)
-	Cmd.delete_branch(input, merge_target)
+	Cmd.merge_ff(commands, merge_target)
+	Cmd.merge_squash(commands, merge_target)
+	Cmd.merge(commands, merge_target)
+	Cmd.delete_branch(commands, merge_target)
 end
 
 # 起動用
-input = ARGV.shift.split("")
-start(input, ARGV)
+commands = ARGV.shift.split("")
+start(commands, ARGV)
