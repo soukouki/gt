@@ -26,7 +26,7 @@ module Cmd extend self
 		commands_base("branch -D", "d", commands, [target])
 	end
 	def new_branch commands, target
-		commands_base("checkout -b", "nb", commands, [target])
+		commands_base("branch", "nb", commands, [target])
 	end
 	def rename_branch commands, target
 		commands_base("branch -m", "rnb", commands, [target])
@@ -71,19 +71,19 @@ end
 def start commands, targets
 	while commands.length > 0
 		case
-		when commands[0..1].join("") == "nb" || commands[0] == "c"
-			start_branch = current_branch
-			target_branch = targets.shift
-			# どちらか一方だけ実行するため
-			Cmd.new_branch(commands, target_branch) || Cmd.checkout(commands, target_branch)
-			checkout_after(commands, start_branch)
 		when commands[0..2].join("") == "rnb"
 			Cmd.rename_branch(commands, targets.shift)
-		when commands[0] == "m"
-			merges(commands, targets)
 		when commands[0..1].join("") == "st"
 			commands.shift(2)
 			Cmd.status
+		when commands[0..1].join("") == "nb"
+			target_branch = targets.first
+			Cmd.new_branch(commands, target_branch)
+			Cmd.checkout(commands, target_branch)
+		when commands[0] == "c"
+			checkout_and_after(commands, targets.first)
+		when commands[0] == "m"
+			merges(commands, targets)
 		when commands[0] == "s"
 			Cmd.sync(commands)
 		when commands[0] == "d"
@@ -96,11 +96,15 @@ def start commands, targets
 	end
 	"処理が終了した際にターゲットが残っています。'#{targets}'" if targets.length > 0
 end
-# チェックアウトの後などに、チェックアウト前に対してターゲットを省略するもの
-def checkout_after commands, start_branch
+# チェックアウトし、チェックアウト前に対して行う操作
+def checkout_and_after commands, target
+	start_branch=current_branch
+	
+	Cmd.checkout(commands, target)
+	
 	merge3(commands, start_branch)
-	Cmd.delete_branch(commands, start_branch)
-	Cmd.checkout(commands, start_branch) # どちらかしかできないが、どうせエラーでわかるのでそのまま
+	return if Cmd.delete_branch(commands, start_branch)
+	Cmd.checkout(commands, start_branch)
 end
 # マージの際、マージ先に対してのコマンドで、ターゲットを省略するもの
 # 戻り値に、ブランチを削除したかどうかを返す
@@ -108,12 +112,12 @@ def merges commands, targets
 	merge_target = targets.shift
 	
 	merge3(commands, merge_target)
-	Cmd.delete_branch(commands, merge_targets)
+	Cmd.delete_branch(commands, merge_target)
 end
 # 三種類のマージを試す。
 def merge3 commands, target
-	Cmd.merge_ff(commands, target)
-	Cmd.merge_squash(commands, target)
+	return if Cmd.merge_ff(commands, target)
+	return if Cmd.merge_squash(commands, target)
 	Cmd.merge(commands, target)
 end
 
