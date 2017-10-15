@@ -7,46 +7,59 @@ def command cmd
 end
 
 # コマンド群
-module Cmd
-	class << self
-		def sync input
-			commands_base("sync", "s", input, [])
+module Cmd extend self
+	# 処理の流れにコマンドと省略コマンドを入れる
+	# 戻り値に、そのコマンドを実行したかどうかが入る
+	def checkout commands, target
+		commands_base("checkout", "c", commands, [target])
+	end
+	def merge commands, target
+		commands_base("merge --no-ff", "m", commands, [target])
+	end
+	def merge_ff commands, target
+		commands_base("merge --ff", "mf", commands, [target])
+	end
+	def merge_squash commands, target
+		commands_base("merge --squash", "ms", commands, [target])
+	end
+	def delete_branch commands, target
+		commands_base("branch -D", "d", commands, [target])
+	end
+	def new_branch commands, target
+		commands_base("branch", "nb", commands, [target])
+	end
+	def rename_branch commands, target
+		commands_base("branch -m", "rnb", commands, [target])
+	end
+	def sync commands
+		commands_base("sync", "s", commands, [])
+	end
+	
+	def status
+		puts command("git branch -l")
+		puts command("git status")
+	end
+	
+	private
+	# コマンドがあっていた場合、その分を削り、コマンドを実行する
+	def commands_base name, abbreviation_command, commands, argument
+		# nilはshiftでの要素が足りないときの戻り値
+		abort "ターゲットが足りません。コマンド:'#{name}' 省略コマンド:'#{abbreviation_command}' ターゲット:'#{argument}'" if argument.include?(nil)
+		abbcom_len = abbreviation_command.length
+		if commands.take(abbcom_len).join("")==abbreviation_command
+			commands.shift(abbcom_len)
+			exec_command(name, argument)
+			return true
 		end
-		def delete_branch input, target
-			commands_base("branch -D", "d", input, [target])
-		end
-		def merge input, target
-			commands_base("merge", "m", input, [target])
-		end
-		def merge_ff input, target
-			commands_base("merge --ff", "mf", input, [target])
-		end
-		def merge_squash input, target
-			commands_base("merge --squash", "ms", input, [target])
-		end
-		def checkout input, target
-			commands_base("checkout", "c", input, [target])
-		end
-		
-		private
-		def commands_base name, abbreviation_command, input, target
-			abbcommand_length = abbreviation_command.length
-			if input.take(abbcommand_length).join("")==abbreviation_command
-				input.shift(abbcommand_length)
-				exec_command(name, target)
-				return true
-			end
-			return false
-		end
-		def exec_command name, argument
-			abort "#{name}の引数がありません。" if argument.include?(nil)
-			# Array#shiftなどは、要素が無いときはnilを返すのでそれを見つける
-			exe_shell = "git #{name} #{argument.map{|a| %!"#{a}"! }.join(" ")}"
-			puts exe_shell
-			puts command(exe_shell)
-			return_num = $?.to_i
-			abort "#{name}に失敗しました。" unless return_num==0
-		end
+		return false
+	end
+	#
+	def exec_command name, argument
+		exe_shell = "git #{name} #{argument.join(" ")}"
+		puts "\n"+exe_shell
+		puts "\t"+command(exe_shell)
+		return_num = $?.to_i
+		abort "#{name}に失敗しました。" unless return_num==0
 	end
 end
 
@@ -55,46 +68,59 @@ def current_branch
 end
 
 # この関数群を動き回って処理していく
-def start input, target
-	case input[0]
-	when "c"
-		checkouts(input, target)
-	when "m"
-		merges(input, target)
-	when "s"
-		Cmd.sync(input)
-	when "d"
-		Cmd.delete_branch(input, target.shift)
-	when "-"
-		input.shift
-	else
-		abort "コマンドが不明です'#{input.join}'"
+def start commands, targets
+	while commands.length > 0
+		case
+		when commands[0..2].join("") == "rnb"
+			Cmd.rename_branch(commands, targets.shift)
+		when commands[0..1].join("") == "st"
+			commands.shift(2)
+			Cmd.status
+		when commands[0..1].join("") == "nb"
+			target_branch = targets.first
+			Cmd.new_branch(commands, target_branch)
+			Cmd.checkout(commands, target_branch)
+		when commands[0] == "c"
+			checkout_and_after(commands, targets.first)
+		when commands[0] == "m"
+			merges(commands, targets)
+		when commands[0] == "s"
+			Cmd.sync(commands)
+		when commands[0] == "d"
+			Cmd.delete_branch(commands, targets.shift)
+		when commands[0] == "-"
+			commands.shift
+		else
+			abort "コマンドが不明です'#{commands.join}'"
+		end
 	end
-	if input.length>0
-		start(input, target)
-	end
+	"処理が終了した際にターゲットが残っています。'#{targets}'" if targets.length > 0
 end
-def checkouts input, target
-	start_branch = current_branch
+# チェックアウトし、チェックアウト前に対して行う操作
+def checkout_and_after commands, target
+	start_branch=current_branch
 	
-	Cmd.checkout(input, target.shift)
-	Cmd.merge_ff(input, start_branch)
-	Cmd.merge_squash(input, start_branch)
-	Cmd.merge(input, start_branch)
-	is_deleted = Cmd.delete_branch(input, start_branch)
-	Cmd.sync input
-	Cmd.checkout(input, start_branch) unless is_deleted
+	Cmd.checkout(commands, target)
+	
+	merge3(commands, start_branch)
+	return if Cmd.delete_branch(commands, start_branch)
+	Cmd.checkout(commands, start_branch)
 end
-def merges input, target
-	merge_target = target.shift
+# マージの際、マージ先に対してのコマンドで、ターゲットを省略するもの
+# 戻り値に、ブランチを削除したかどうかを返す
+def merges commands, targets
+	merge_target = targets.shift
 	
-	Cmd.merge_ff(input, merge_target)
-	Cmd.merge_squash(input, merge_target)
-	Cmd.merge(input, merge_target)
-	Cmd.delete_branch(input, merge_target)
+	merge3(commands, merge_target)
+	Cmd.delete_branch(commands, merge_target)
+end
+# 三種類のマージを試す。
+def merge3 commands, target
+	return if Cmd.merge_ff(commands, target)
+	return if Cmd.merge_squash(commands, target)
+	Cmd.merge(commands, target)
 end
 
 # 起動用
-input = ARGV.shift.split("")
-start(input, ARGV)
-puts("処理が終了した際に引数が残っています'#{ARGV}'") unless ARGV.empty?
+commands = ARGV.shift.split("")
+start(commands, ARGV)
